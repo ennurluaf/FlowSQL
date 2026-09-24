@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>FlowSQL — Interactive Editor</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+    <header>
+      <div class="logo">Flow<span>SQL</span></div>
+      <div class="h-sep"></div>
+      <button class="h-btn" onclick="undo()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M9 14 4 9l5-5" />
+          <path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" />
+        </svg>
+        Undo
+      </button>
+      <button class="h-btn" onclick="redo()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="m15 14 5-5-5-5" />
+          <path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" />
+        </svg>
+        Redo
+      </button>
+      <div class="h-sep"></div>
+      <button class="h-btn" onclick="savePNG()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <polyline points="21 15 16 10 5 21" />
+        </svg>
+        PNG
+      </button>
+      <button class="h-btn" onclick="saveSVG()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="14 2 14 8 20 8" />
+          <path d="M20 20H4V4h10l6 6v10z" />
+        </svg>
+        SVG
+      </button>
+      <button class="h-btn" onclick="saveJSON()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        JSON AST
+      </button>
+      <button class="h-btn" onclick="triggerLoad()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        Load JSON
+      </button>
+      <div class="h-spacer"></div>
+      <button
+        class="h-btn theme-toggle-btn"
+        id="themeToggle"
+        title="Toggle light / dark mode"
+      >
+        <svg
+          id="themeIcon"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      </button>
+      <div class="h-sep"></div>
+      <div class="h-badge" id="selInfo">No selection</div>
+    </header>
+
+    <!-- ══ APP LAYOUT ══════════════════════════════════════════════════════════ -->
+    <div class="app">
+      <!-- ── SIDE PANEL ─────────────────────────────────────────────────────── -->
+      <aside class="panel" id="panel">
+        <!-- Tab bar -->
+        <div class="panel-tab">
+          <button type="button" class="tab-btn on" onclick="showTab('sql', this)">SQL</button>
+          <button type="button" class="tab-btn" onclick="showTab('props', this)">Properties</button>
+          <button type="button" class="tab-btn" onclick="showTab('theme', this)">Theme</button>
+        </div>
+
+        <!-- ── SQL TAB ──────────────────────────────────────────────────────── -->
+        <div class="panel-body on" id="tab-sql">
+          <!-- Section 1: SQL input -->
+          <div class="vsec" id="vsec-sql">
+            <div class="vsec-header">
+              <span class="sec-label">Stored Procedure</span>
+            </div>
+            <div class="vsec-content">
+              <textarea
+                class="sql-in"
+                id="sqlIn"
+                spellcheck="false"
+                placeholder="Paste CREATE PROCEDURE...END here"
+              ></textarea>
+              <div class="err" id="errBar"></div>
+              <div class="btn-stack">
+                <button class="btn btn-primary" onclick="generateFromSQL()">
+                  <svg
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    viewBox="0 0 24 24"
+                  >
+                    <polygon points="5 3 19 12 5 21 5 3" />
+                  </svg>
+                  Generate Flowchart
+                </button>
+                <div class="row">
+                  <button class="btn btn-ghost" onclick="loadExample()">
+                    Example
+                  </button>
+                  <button class="btn btn-ghost" onclick="clearAll()">
+                    Clear
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Vertical resize handle between SQL and Add Node -->
+          <div
+            class="vresize-handle"
+            data-prev="vsec-sql"
+            data-next="vsec-addnode"
+          ></div>
+
+          <!-- Section 2: Add node -->
+          <div class="vsec" id="vsec-addnode">
+            <div class="vsec-header">
+              <span class="sec-label">Add Node</span>
+            </div>
+            <div class="vsec-content">
+              <div class="row">
+                <select title="Node Type" id="addNodeType" class="prop-in">
+                  <option value="process">Process</option>
+                  <option value="decision">Decision</option>
+                  <option value="start">Start / End</option>
+                  <option value="insert">INSERT</option>
+                  <option value="update">UPDATE</option>
+                  <option value="delete">DELETE</option>
+                  <option value="set">SET</option>
+                  <option value="select">SELECT</option>
+                </select>
+              </div>
+              <button class="btn btn-ghost" onclick="addNodeManual()">
+                + Add to Canvas
+              </button>
+            </div>
+          </div>
+
+          <!-- Vertical resize handle between Add Node and Controls -->
+          <div
+            class="vresize-handle"
+            data-prev="vsec-addnode"
+            data-next="vsec-controls"
+          ></div>
+
+          <!-- Section 3: Controls reference -->
+          <div class="vsec" id="vsec-controls">
+            <div class="vsec-header">
+              <span class="sec-label">Controls</span>
+            </div>
+            <div class="vsec-content">
+              <div class="controls-list">
+                <div class="ctrl-row">
+                  <kbd>Drag node</kbd><span>Move it</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Drag empty</kbd><span>Rubber-band select</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Drag selection</kbd><span>Move group</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Dbl-click</kbd><span>Rename inline</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Right-click</kbd><span>Context menu</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Connect + click</kbd><span>Draw arrow</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Scroll</kbd><span>Zoom canvas</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Space / MMB</kbd><span>Pan</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Ctrl+A</kbd><span>Select all</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Del</kbd><span>Delete selection</span>
+                </div>
+                <div class="ctrl-row">
+                  <kbd>Ctrl+Z / Y</kbd><span>Undo / Redo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /tab-sql -->
+
+        <!-- ── PROPERTIES TAB ───────────────────────────────────────────────── -->
+        <div class="panel-body" id="tab-props">
+          <div class="vsec" id="vsec-props">
+            <div class="vsec-header">
+              <span class="sec-label">Node / Arrow</span>
+            </div>
+            <div class="vsec-content" id="propPanel">
+              <div class="no-sel">
+                <svg
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M15 3h6v6M14 10l7-7M9 21H3v-6M10 14l-7 7" />
+                </svg>
+                Select a node or arrow<br />to edit its properties
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── THEME TAB ─────────────────────────────────────────────────────── -->
+        <div class="panel-body" id="tab-theme">
+          <div class="vsec" id="vsec-nodetheme">
+            <div class="vsec-header">
+              <span class="sec-label">Node Theme</span>
+            </div>
+            <div class="vsec-content">
+              <div class="theme-row" id="themeRow"></div>
+            </div>
+          </div>
+
+          <div
+            class="vresize-handle"
+            data-prev="vsec-nodetheme"
+            data-next="vsec-canbg"
+          ></div>
+
+          <div class="vsec" id="vsec-canbg">
+            <div class="vsec-header">
+              <span class="sec-label">Canvas Background</span>
+            </div>
+            <div class="vsec-content">
+              <div class="cc-grid" id="ccGrid"></div>
+            </div>
+          </div>
+
+          <div
+            class="vresize-handle"
+            data-prev="vsec-canbg"
+            data-next="vsec-view"
+          ></div>
+
+          <div class="vsec" id="vsec-view">
+            <div class="vsec-header"><span class="sec-label">View</span></div>
+            <div class="vsec-content">
+              <div class="row">
+                <button
+                  class="btn btn-ghost"
+                  onclick="toggleGrid()"
+                  id="gridBtn"
+                >
+                  Grid: ON
+                </button>
+                <button class="btn btn-ghost" onclick="fitAll()">
+                  Fit All
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /tab-theme -->
+      </aside>
+      <!-- /panel -->
+
+      <!-- Horizontal panel resize handle -->
+      <div class="hresize-handle" id="hresizeHandle"></div>
+
+      <!-- ── CANVAS AREA ──────────────────────────────────────────────────────── -->
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="c"></canvas>
+
+        <!-- Floating toolbar -->
+        <div class="float-tb">
+          <button class="ft-btn on" id="toolSel" onclick="setTool('select')">
+            <svg
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path d="M4 4l7 18 3-7 7-3z" />
+            </svg>
+            Select
+          </button>
+          <div class="ft-sep"></div>
+          <button class="ft-btn" id="toolCon" onclick="setTool('connect')">
+            <svg
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+            Connect
+          </button>
+          <div class="ft-sep"></div>
+          <button class="ft-btn" onclick="fitAll()">
+            <svg
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"
+              />
+            </svg>
+            Fit
+          </button>
+        </div>
+
+        <!-- Zoom HUD -->
+        <div class="zoom-hud">
+          <button class="zh-btn" onclick="zoomBy(-0.15)">−</button>
+          <span class="zh-val" id="zoomDisp">100%</span>
+          <button class="zh-btn" onclick="zoomBy(0.15)">+</button>
+        </div>
+      </div>
+    </div>
+    <!-- /app -->
+
+    <!-- ══ CONTEXT MENUS ════════════════════════════════════════════════════════ -->
+    <div class="ctx-menu" id="ctxNode">
+      <div class="ctx-item" onclick="ctxRename()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+        Rename
+      </div>
+      <div class="ctx-item" onclick="ctxChangeType()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        Cycle Type
+      </div>
+      <div class="ctx-item" onclick="ctxDuplicate()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <rect x="9" y="9" width="13" height="13" rx="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+        Duplicate
+      </div>
+      <div class="ctx-item" onclick="ctxStartConnect()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <line x1="5" y1="12" x2="19" y2="12" />
+          <polyline points="12 5 19 12 12 19" />
+        </svg>
+        Connect From Here
+      </div>
+      <div class="ctx-sep"></div>
+      <div
+        class="ctx-item danger"
+        id="ctxDeleteItem"
+        onclick="deleteSelected()"
+      >
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        </svg>
+        Delete Node
+      </div>
+    </div>
+
+    <div class="ctx-menu" id="ctxArrow">
+      <div class="ctx-item" onclick="ctxArrowLabel()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M12 20h9" />
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+        </svg>
+        Edit Label
+      </div>
+      <div class="ctx-item" onclick="ctxArrowFlip()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="17 1 21 5 17 9" />
+          <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+          <polyline points="7 23 3 19 7 15" />
+          <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+        </svg>
+        Flip Direction
+      </div>
+      <div class="ctx-sep"></div>
+      <div class="ctx-item danger" onclick="deleteSelected()">
+        <svg
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <polyline points="3 6 5 6 21 6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+        </svg>
+        Delete Arrow
+      </div>
+    </div>
+
+    <!-- Hidden file input for JSON load -->
+    <input
+      title="Load JSON"
+      type="file"
+      id="jsonFile"
+      accept=".json"
+      onchange="onLoadJSON(event)"
+    />
+
+    <script src="js/init.js"></script>
+    <script src="js/panel_resize.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/history.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/draw.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/tools.js"></script>
+    <script src="js/zoom.js"></script>
+    <script src="js/panel.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/layout.js"></script>
+    <script src="js/generate.js"></script>
+    <script src="js/save_load.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html>
